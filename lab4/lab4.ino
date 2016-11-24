@@ -3,6 +3,7 @@
 #include <utility/Adafruit_MCP23017.h>
 #include <Servo.h>
 #include "graph.cpp"
+#include <vector>
 #define RED 0x1
 #define YELLOW 0x3
 #define GREEN 0x2
@@ -11,8 +12,8 @@
 #define VIOLET 0x5
 #define WHITE 0x7
 #define TIMEFORGRID 3000
-#define TURNOFFSET 150
-
+#define TURNOFFSET 550
+using namespace std;
 
 Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
 
@@ -21,6 +22,8 @@ const int SLSensor = A1;  // Analog input pin that the potentiometer is attached
 const int SRSensor = A2;  // Analog input pin that the potentiometer is attached to
 const int LFSensor = A3;  // Analog input pin that the potentiometer is attached to
 
+vector<int> pathPlanning(Graph* inputGraph, char dir, int startPt, int endPt);
+vector<int> currPos;
 int startLoc = 0;
 int endLoc = 0;
 char dir = 'E';
@@ -50,9 +53,9 @@ int setColorTime = 0;
 int previousColorTime = 0;
 int previousTime = 0;
 
-
-
-
+//list for shortest path
+list<int> shortestPath;
+Graph* maze1 = new Graph();
 void setup() {
   lcd.begin(16, 2);
   lcd.setBacklight(WHITE);
@@ -63,87 +66,7 @@ void setup() {
   RServo.write(90);
   Serial.begin(9600);
   visited = 1;
-
-  //Remember!!!!!
-Graph* maze1 = new Graph();
-
-//------------
-//first row verified
-//------------
-maze1->addEdge(0, 4);
-maze1->addEdge(0, 1);
-
-maze1->addEdge(1, 2);
-maze1->addEdge(1, 0);
-
-maze1->addEdge(2, 3);
-maze1->addEdge(2, 6);
-maze1->addEdge(2, 1);
-
-maze1->addEdge(3, 7);
-maze1->addEdge(3, 2);
-
-//---------------
-//second row verified
-//---------------
-maze1->addEdge(4, 0);
-maze1->addEdge(4, 8);
-
-maze1->addEdge(5, 9);
-maze1->addEdge(5, 6);
-
-maze1->addEdge(6, 2);
-maze1->addEdge(6, 10);
-
-maze1->addEdge(7, 3);
-maze1->addEdge(7, 11);
-
-//---------------
-//third row verified
-//---------------
-maze1->addEdge(8, 9);
-maze1->addEdge(8, 4);
-
-maze1->addEdge(9, 5);
-maze1->addEdge(9, 8);
-
-maze1->addEdge(10, 14);
-maze1->addEdge(10, 6);
-
-maze1->addEdge(11, 7);
-
-//------------
-//Fourth row  verified
-//------------
-maze1->addEdge(12, 13);
-
-maze1->addEdge(13, 12);
-maze1->addEdge(13, 14);
-
-maze1->addEdge(14, 13);
-maze1->addEdge(14, 10);
-maze1->addEdge(14, 15);
-
-maze1->addEdge(15, 14);
-
-/*for (int i = 0; i < 16; ++i){
-  for (int j = 0; j < maze1->adj[i].getSize(); ++j){
-    Serial.println(maze1->adj[i].getItem(j));
-  }
-  Serial.println();
-  Serial.println();
-}*/
-
-//Queue bfsQueue = maze1->BFS(14, 13);
-
-//for (int i = 0; i < bfsQueue.getSize(); ++i){
-//  Serial.println(bfsQueue.getItem(i));
-//}
-list<int> shortestPath = maze1->BFS(13, 11);
-list<int>::iterator i;
-for (i = shortestPath.begin(); i != shortestPath.end(); ++i){
-  Serial.println(*i);
-}
+  setupMaze1();
 }
 
 
@@ -220,14 +143,93 @@ void loop() {
 
     if (buttons & BUTTON_SELECT){
       if (menuItem == 3){
-        maze[0][0] = 'O';
+        vector<int> movesToGoal = pathPlanning(maze1, dir, startLoc, endLoc);
+        
+       /* for (int i = 0; i < movesToGoal.size(); ++i){
+          Serial.println("Current position");
+          Serial.println(currPos.at(i));
+          Serial.println("Current move");
+          Serial.println(movesToGoal.at(i));
+          Serial.println();
+          Serial.println();
+        }*/
+
+        int itr = 0;
+        int moveToDo = movesToGoal.at(itr);
+        
+        maze[startLoc][endLoc] = 'O';
+        int currLoc = startLoc;
         setColorTime = millis();
         previousColorTime = millis();
         previousTime = millis();
-        while (true){
+
+        if (moveToDo == 1){
+              LServo.write(100);
+              RServo.write(80);
+            }
+            else if (moveToDo == 2){
+              LServo.write(80);
+              RServo.write(80);
+              updateDir('L');
+              delay(550);
+              subtractTimer(TURNOFFSET);
+              moveToDo = movesToGoal.at(++itr);
+            }
+            else if (moveToDo == 3){
+              LServo.write(100);
+              RServo.write(100);
+              updateDir('R');
+              delay(550);
+              subtractTimer(TURNOFFSET);
+              moveToDo = movesToGoal.at(++itr);
+            }
+            else if (moveToDo == 4){
+              LServo.write(80);
+              RServo.write(80);
+              updateDir('U');
+              delay(1100);
+              subtractTimer(TURNOFFSET);
+              subtractTimer(TURNOFFSET);
+              moveToDo = movesToGoal.at(++itr);
+            }
+
+            
+        while (currLoc != endLoc){
+          Serial.println(moveToDo);
+          bfsWallFollowing(7, 5);
+            
             setColorTime = millis();
             if (getElapsedTime() >= 500){
               lcd.setBacklight(WHITE);
+              if (moveToDo == 1){
+              LServo.write(100);
+              RServo.write(80);
+            }
+            else if (moveToDo == 2){
+              LServo.write(80);
+              RServo.write(80);
+              updateDir('L');
+              delay(550);
+              subtractTimer(TURNOFFSET);
+              moveToDo = movesToGoal.at(++itr);
+            }
+            else if (moveToDo == 3){
+              LServo.write(100);
+              RServo.write(100);
+              updateDir('R');
+              delay(550);
+              subtractTimer(TURNOFFSET);
+              moveToDo = movesToGoal.at(++itr);
+            }
+            else if (moveToDo == 4){
+              LServo.write(80);
+              RServo.write(80);
+              updateDir('U');
+              delay(1100);
+              subtractTimer(TURNOFFSET);
+              subtractTimer(TURNOFFSET);
+              moveToDo = movesToGoal.at(++itr);
+            }
             }
             setTimer();
   
@@ -241,10 +243,13 @@ void loop() {
             lcd.setCursor(12, 1);
             lcd.print(x);
 
-  
-            if (getElapsedTime() >= TIMEFORGRID) //more than 3 seconds have passed
+            
+
+            if (getElapsedTime() >= TIMEFORGRID) //more than 3 seconds have passed, we are in new grid. decide what to do
             {
+              
                 setPreviousTimer();
+                moveToDo = movesToGoal.at(++itr);
                 switch(dir){
                   case('N') : 
                   lcd.setBacklight(BLUE);
@@ -273,16 +278,18 @@ void loop() {
               }
             }
 
-            if (checkVisited() == 16){
+            /*if (checkVisited() == 16){
               lcd.setBacklight(WHITE);
               delay(2500);
               RServo.write(90);
               LServo.write(90);
               delay(50000);
-            }
+            }*/
             //in a new grid 
-            closeLoopCtrlPart2(7, 5);
+            //closeLoopCtrlPart2(7, 5);
         }
+        LServo.write(90);
+        RServo.write(90);
       }
     }
 
@@ -325,6 +332,13 @@ void loop() {
     }
   }
 }
+
+
+
+
+
+
+
 
 
 
@@ -488,7 +502,40 @@ int saturationFunctionFront(double val){
 }
 
 
+void bfsWallFollowing(float rt, float kp){
+  //Control Loop for front sensor
+  float ytf = sensorRead("front");
 
+  //Check front distance and set left servo
+  float etfl = rt - ytf;
+  float utfl = kp * etfl;
+
+  //Check front distance and set right servo
+  float etfr = ytf - rt;
+  float utfr = kp * etfr;
+
+  float ytr = sensorRead("right");
+  
+  //Check right distance. Set left
+  float etrl = rt - ytr;
+  float utrl = kp * etrl;
+
+  //Check right distance. Set Right
+  float etrr = ytr - rt;
+  float utrr = kp * etrr;
+
+  int leftServoValue = saturationFunctionFront(utfl) + saturationFunctionRightLeft(utrl);
+  int rightServoValue = saturationFunctionFront(utfr) - saturationFunctionRightLeft(utrr);
+
+  if (ytr >= 10.0){
+    return;
+  }
+  else{
+    RServo.write(rightServoValue);
+    LServo.write(leftServoValue); 
+  }
+
+}
 
 
 
@@ -527,6 +574,7 @@ float sensorRead(String sensorDirection){
   return sensorValue;
 }
 
+
 void modifyAndPrint(int x, int y){
   if (maze[x][y] == 'O'){
     return;
@@ -560,6 +608,35 @@ int checkVisited(){
     }
   }
   return visitedNodes;
+}
+
+void getGrids(int gridNum, char dir, int* front, int* left, int* right, int* back){
+      switch(dir){
+        case 'N':
+          *front = gridNum + 4;
+          *back = gridNum - 4;
+          *left = gridNum - 1;
+          *right = gridNum + 1;
+          break;
+        case 'S':
+          *front = gridNum - 4;
+          *back = gridNum + 4;
+          *left = gridNum + 1;
+          *right = gridNum - 1;
+          break;
+        case 'E':
+          *front = gridNum + 1;
+          *back = gridNum - 1;
+          *left = gridNum + 4;
+          *right = gridNum - 4;
+          break;
+        case 'W':
+          *front = gridNum - 1;
+          *back = gridNum + 1;
+          *left = gridNum - 4;
+          *right = gridNum + 4;
+          break;
+      }
 }
 
 void convertToCartesian(int gridNum, int* x, int* y){
@@ -635,5 +712,210 @@ void convertToCartesian(int gridNum, int* x, int* y){
       *y = 3;
       break;
   }
+}
+
+vector<int> pathPlanning(Graph* inputGraph, char dir, int startPt, int endPt){
+
+  //---------------------------------
+  //moves take place as follows
+  // 1: forward
+  // 2: turn left
+  // 3: turn right
+  // 4: turn 180
+  shortestPath = inputGraph->BFS(startPt, endPt);
+  vector<int> moves;
+  list<int>::reverse_iterator i;
+  list<int>::reverse_iterator target = shortestPath.rend();
+  --target;
+  //int x;
+  //int y;
+
+  int front;
+  int back;
+  int left;
+  int right;
+  i = shortestPath.rbegin();
+  currPos.push_back(*i);
+  for (i = shortestPath.rbegin(); i != target; ++i){
+    getGrids(*i, dir, &front, &left, &right, &back);
+    
+    if (front == *(i + 1)){
+      currPos.push_back(*(i + 1));
+      moves.push_back(1);
+    }
+    if (left == *(i + 1)){
+      currPos.push_back(*(i));
+      currPos.push_back(*(i + 1));
+      moves.push_back(2);
+      moves.push_back(1);
+      if (dir == 'E'){
+        dir = 'N';
+      }
+      else if (dir == 'W'){
+        dir = 'S';
+      }
+      else if (dir == 'N'){
+        dir = 'W';
+      }
+      else
+        dir = 'E';
+    }
+    if (right == *(i + 1)){
+      currPos.push_back(*(i));
+      currPos.push_back(*(i + 1));
+      moves.push_back(3);
+      moves.push_back(1);
+      if (dir == 'E'){
+        dir = 'S';
+      }
+      else if (dir == 'W'){
+        dir = 'N';
+      }
+      else if (dir == 'N'){
+        dir = 'E';
+      }
+      else
+        dir = 'W';
+    }
+    if (back == *(i + 1)){
+      currPos.push_back(*(i));
+      currPos.push_back(*(i + 1));
+      moves.push_back(4);
+      moves.push_back(1);
+      if (dir == 'E'){
+        dir = 'W';
+      }
+      else if (dir == 'W'){
+        dir = 'E';
+      }
+      else if (dir == 'N'){
+        dir = 'S';
+      }
+      else
+        dir = 'N';
+    }
+    //convertToCartesian(*i, y, x);
+    //Serial.println(*x);
+    //Serial.println(*y);
+    //Serial.println();
+    //Serial.println(*i);
+    //convertToCartesian(*i, &y, &x);
+    //Serial.print(x);
+    //Serial.print(",");
+    //Serial.print(y);
+    //Serial.println();
+    //Serial.println();
+    
+  }
+  return moves;
+}
+
+void updateDir(char turn){
+  switch (dir){
+    case 'N':
+      if (turn == 'L'){
+        dir = 'W';
+      }
+      if (turn == 'R'){
+        dir = 'E';
+      }
+      if (turn == 'U'){
+        dir = 'S';
+      }
+      break;
+    case 'S':
+      if (turn == 'L'){
+        dir = 'E';
+      }
+      if (turn == 'R'){
+        dir = 'W';
+      }
+      if (turn == 'U'){
+        dir = 'N';
+      }
+      break;
+    case 'E':
+      if (turn == 'L'){
+        dir = 'N';
+      }
+      if (turn == 'R'){
+        dir = 'S';
+      }
+      if (turn == 'U'){
+        dir = 'W';
+      }
+      break;
+    case 'W':
+      if (turn == 'L'){
+        dir = 'S';
+      }
+      if (turn == 'R'){
+        dir = 'N';
+      }
+      if (turn == 'U'){
+        dir = 'E';
+      }
+      break;
+  }
+}
+void setupMaze1(){
+    //------------
+  //first row verified
+  //------------
+  maze1->addEdge(0, 4);
+  maze1->addEdge(0, 1);
+
+  maze1->addEdge(1, 2);
+  maze1->addEdge(1, 0);
+  
+  maze1->addEdge(2, 3);
+  maze1->addEdge(2, 6);
+  maze1->addEdge(2, 1);
+  
+  maze1->addEdge(3, 7);
+  maze1->addEdge(3, 2);
+  
+  //---------------
+  //second row verified
+  //---------------
+  maze1->addEdge(4, 0);
+  maze1->addEdge(4, 8);
+  
+  maze1->addEdge(5, 9);
+  maze1->addEdge(5, 6);
+  
+  maze1->addEdge(6, 2);
+  maze1->addEdge(6, 10);
+  
+  maze1->addEdge(7, 3);
+  maze1->addEdge(7, 11);
+  
+  //---------------
+  //third row verified
+  //---------------
+  maze1->addEdge(8, 9);
+  maze1->addEdge(8, 4);
+  
+  maze1->addEdge(9, 5);
+  maze1->addEdge(9, 8);
+  
+  maze1->addEdge(10, 14);
+  maze1->addEdge(10, 6);
+  
+  maze1->addEdge(11, 7);
+  
+  //------------
+  //Fourth row  verified
+  //------------
+  maze1->addEdge(12, 13);
+  
+  maze1->addEdge(13, 12);
+  maze1->addEdge(13, 14);
+  
+  maze1->addEdge(14, 13);
+  maze1->addEdge(14, 10);
+  maze1->addEdge(14, 15);
+  
+  maze1->addEdge(15, 14);
 }
 
