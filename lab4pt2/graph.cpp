@@ -3,6 +3,10 @@
 
 using namespace std;
 
+//------------------------------
+// Adjacency graph created
+//------------------------------
+// by using doubly linked lists
 class Graph{
   list<int> *adj;
 
@@ -11,25 +15,25 @@ class Graph{
   void addEdge(int v, int w){adj[v].push_back(w);}
   list<int> BFS(int s, int g){
     int *prev = new int[16];
-    bool *visited = new bool[16];
+    bool *checked = new bool[16];
     for (int i = 0; i < 16; ++i){
-      visited[i] = false;
+      checked[i] = false;
       prev[i] = -1;
     }
-    list<int> queue;
-    visited[s] = true;
-    queue.push_back(s);
+    list<int> listOfNeighbors;
+    checked[s] = true;
+    listOfNeighbors.push_back(s);
     list<int>::iterator i;
     list<int> shortestPath;
 
-    while(!queue.empty()){
-      s = queue.front();
-      queue.pop_front();
+    while(!listOfNeighbors.empty()){
+      s = listOfNeighbors.front();
+      listOfNeighbors.pop_front();
 
       for (i = adj[s].begin(); i != adj[s].end(); ++i){
-        if(!visited[*i]){
-          visited[*i] = true;
-          queue.push_back(*i);
+        if(!checked[*i]){
+          checked[*i] = true;
+          listOfNeighbors.push_back(*i);
           prev[*i] = s;
         }
       }
