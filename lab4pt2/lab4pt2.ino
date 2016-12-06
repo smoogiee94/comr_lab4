@@ -11,8 +11,8 @@
 #define BLUE 0x4
 #define VIOLET 0x5
 #define WHITE 0x7
-#define TIMEFORGRID 3000 //originally 3000
-#define TURNOFFSET 620
+#define TIMEFORGRID  2950//originally 3000
+#define TURNOFFSET 600
 using namespace std;
 
 Adafruit_RGBLCDShield lcd = Adafruit_RGBLCDShield();
@@ -449,6 +449,123 @@ void loop() {
   delay(1000);
   }
 
+//---------------------------
+// At start, traverse to goal
+//---------------------------
+currLoc = cartesianToGrid(y, x);
+  while(currLoc != endLoc){
+    currLoc = cartesianToGrid(y, x);
+    lcd.setCursor(10, 0);
+  lcd.write(dir);
+  lcd.setCursor(10, 1);
+  lcd.print("  ");
+  lcd.setCursor(10, 1);
+  lcd.print(cartesianToGrid(y, x));
+
+  setTimer();
+
+  if (sensorRead("right") > 16){
+    if (prevTurn != 'R'){
+      updateDir('R');
+      RServo.write(100);
+      LServo.write(100);
+      delay(TURNOFFSET);
+      RServo.write(90);
+      LServo.write(90);
+      delay(200);
+      prevTurn = 'R';
+    }
+    else{
+          prevTurn = 'N';
+    RServo.write(80);
+    LServo.write(100);
+    setTimer();
+    previousTime = millis();
+    while (getElapsedTime() < TIMEFORGRID){
+      bfsWallFollowing(9, 5);
+      setTimer();
+    }
+    switch(dir){
+        case('N') : 
+          if (x + 1 <= 3)
+          modifyAndPrint(++x, y);
+          break;
+        case('S') : 
+          if (x - 1 >= 0)
+          modifyAndPrint(--x, y);
+          break;
+        case('W') :
+          if (y - 1 >= 0)
+          modifyAndPrint(x, --y);
+          break;
+        case('E') :
+          if (y + 1 <= 3)
+          modifyAndPrint(x, ++y);
+          break;
+    }
+    }
+
+
+  }
+
+  else if (sensorRead("front") > 20){
+    prevTurn = 'N';
+    RServo.write(80);
+    LServo.write(100);
+    setTimer();
+    previousTime = millis();
+    while (getElapsedTime() < TIMEFORGRID){
+      bfsWallFollowing(9, 5);
+      setTimer();
+    }
+    switch(dir){
+        case('N') : 
+          if (x + 1 <= 3)
+          modifyAndPrint(++x, y);
+          break;
+        case('S') : 
+          if (x - 1 >= 0)
+          modifyAndPrint(--x, y);
+          break;
+        case('W') :
+          if (y - 1 >= 0)
+          modifyAndPrint(x, --y);
+          break;
+        case('E') :
+          if (y + 1 <= 3)
+          modifyAndPrint(x, ++y);
+          break;
+    }
+  }
+
+  else if (sensorRead("left") > 16){
+    updateDir('L');
+    prevTurn = 'L';
+    RServo.write(80);
+    LServo.write(80);
+    delay(TURNOFFSET);
+    RServo.write(90);
+    LServo.write(90);
+    delay(200);
+  }
+
+  else {
+    updateDir('U');
+    prevTurn = 'U';
+    RServo.write(80);
+    LServo.write(80);
+    delay(TURNOFFSET);
+    delay(TURNOFFSET);
+    RServo.write(90);
+    LServo.write(90);
+    delay(200);
+  }
+  RServo.write(90);
+  LServo.write(90);
+  delay(1000);
+  }
+
+  delay(50000);
   //At start location, traverse to goal
   vector<int> movesToGoal = pathPlanning(maze3, dir, startLoc, endLoc);
         
